@@ -1,6 +1,8 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import authRoutes from "./routes/auth";
+import { authenticate } from "./middleware/auth";
 
 dotenv.config();
 
@@ -10,6 +12,12 @@ app.use(express.json());
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok" });
+});
+
+app.use("/auth", authRoutes);
+
+app.get("/protected", authenticate, (_req, res) => {
+  res.json({ message: "authorized" });
 });
 
 const PORT = process.env.PORT || 3001;
