@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import authRoutes from "./routes/auth";
+import jobRoutes from "./routes/jobs";
 import { authenticate } from "./middleware/auth";
 
 dotenv.config();
@@ -15,6 +16,8 @@ app.get("/health", (_req, res) => {
 });
 
 app.use("/auth", authRoutes);
+
+app.use("/jobs", jobRoutes);
 
 app.get("/protected", authenticate, (_req, res) => {
   res.json({ message: "authorized" });

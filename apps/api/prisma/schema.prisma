@@ -20,4 +20,22 @@ model User {
   name      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  jobs      JobApplication[]
+}
+
+enum JobStatus {
+  APPLIED
+  INTERVIEW
+  OFFER
+  REJECTED
+}
+
+model JobApplication {
+  id        String    @id @default(uuid())
+  company   String
+  position  String
+  status    JobStatus @default(APPLIED)
+  createdAt DateTime  @default(now())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
 }
