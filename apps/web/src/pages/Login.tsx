@@ -1,11 +1,13 @@
 import { type FormEvent, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { login } from "../api/auth";
 import { Input } from "../components/Input";
 import { Button } from "../components/Button";
 
 export function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const expired = searchParams.get("expired") === "1";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -31,6 +33,12 @@ export function Login() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="w-full max-w-sm p-6 bg-white rounded-lg shadow">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Sign In</h1>
+
+        {expired && !error && (
+          <div className="mb-4 p-3 bg-yellow-50 text-yellow-700 text-sm rounded-md">
+            Session expired. Please sign in again.
+          </div>
+        )}
 
         {error && (
           <div className="mb-4 p-3 bg-red-50 text-red-700 text-sm rounded-md">{error}</div>
