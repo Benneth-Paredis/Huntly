@@ -7,12 +7,13 @@ const router = Router();
 router.use(authenticate);
 
 router.post("/", async (req: AuthRequest, res: Response) => {
-  const { company, position, status } = req.body;
+  const { company, position, email, status } = req.body;
 
   const job = await prisma.jobApplication.create({
     data: {
       company,
       position,
+      email,
       status,
       userId: req.user!.userId,
     },
@@ -32,7 +33,7 @@ router.get("/", async (req: AuthRequest, res: Response) => {
 
 router.patch("/:id", async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
-  const { company, position, status } = req.body;
+  const { company, position, email, status } = req.body;
 
   const job = await prisma.jobApplication.findUnique({ where: { id } });
 
@@ -46,6 +47,7 @@ router.patch("/:id", async (req: AuthRequest, res: Response) => {
     data: {
       ...(company !== undefined && { company }),
       ...(position !== undefined && { position }),
+      ...(email !== undefined && { email }),
       ...(status !== undefined && { status }),
     },
   });

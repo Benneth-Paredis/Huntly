@@ -1,20 +1,11 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  DndContext,
-  DragOverlay,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  type DragStartEvent,
-  type DragEndEvent,
-  type DragOverEvent,
-} from "@dnd-kit/core";
-import { getJobs, createJob, updateJob } from "../api/jobs";
+import { getJobs, createJob } from "../api/jobs";
 import type { Job, JobStatus } from "../types";
 import { Input } from "../components/Input";
 import { Button } from "../components/Button";
-import { KanbanColumn } from "../components/KanbanColumn";
+import { JobList } from "../components/JobList";
+import { JobDetail } from "../components/JobDetail";
 
 const statuses: JobStatus[] = ["APPLIED", "INTERVIEW", "OFFER", "REJECTED"];
 
@@ -26,14 +17,15 @@ export function Jobs() {
 
   const [company, setCompany] = useState("");
   const [position, setPosition] = useState("");
+  const [email, setEmail] = useState("");
   const [status, setStatus] = useState<JobStatus>("APPLIED");
   const [submitting, setSubmitting] = useState(false);
 
-  const [activeJob, setActiveJob] = useState<Job | null>(null);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
-  );
+  const selectedJob = selectedJobId
+    ? jobs.find((j) => j.id === selectedJobId) ?? null
+    : null;
 
   useEffect(() => {
     getJobs()
@@ -50,10 +42,12 @@ export function Jobs() {
     setSubmitting(true);
 
     try {
-      const job = await createJob({ company, position, status });
+      const job = await createJob({ company, position, email: email || undefined, status });
       setJobs((prev) => [job, ...prev]);
+      setSelectedJobId(job.id);
       setCompany("");
       setPosition("");
+      setEmail("");
       setStatus("APPLIED");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create job");
@@ -67,73 +61,31 @@ export function Jobs() {
     navigate("/login");
   }
 
-  function handleDragStart(event: DragStartEvent) {
-    const job = jobs.find((j) => j.id === event.active.id);
-    setActiveJob(job ?? null);
-  }
-
-  function handleDragOver(event: DragOverEvent) {
-    const { active, over } = event;
-    if (!over) return;
-
-    const activeId = active.id as string;
-    const overId = over.id as string;
-
-    // Determine the target status: either the column id itself or the status of the card we're over
-    const targetStatus = statuses.includes(overId as JobStatus)
-      ? (overId as JobStatus)
-      : (over.data.current?.status as JobStatus | undefined);
-
-    if (!targetStatus) return;
-
-    const job = jobs.find((j) => j.id === activeId);
-    if (!job || job.status === targetStatus) return;
-
-    // Optimistic move during drag-over for instant visual feedback
-    setJobs((prev) =>
-      prev.map((j) => (j.id === activeId ? { ...j, status: targetStatus } : j))
-    );
-  }
-
-  async function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    setActiveJob(null);
-
-    if (!over) return;
-
-    const activeId = active.id as string;
-    const job = jobs.find((j) => j.id === activeId);
-    const originalStatus = active.data.current?.status as JobStatus;
-
-    if (!job || job.status === originalStatus) return;
-
-    // Already moved optimistically in handleDragOver — now persist
-    try {
-      await updateJob(activeId, { status: job.status });
-    } catch {
-      // Revert on failure
-      setJobs((prev) =>
-        prev.map((j) => (j.id === activeId ? { ...j, status: originalStatus } : j))
-      );
-    }
-  }
-
   function handleJobUpdate(updatedJob: Job) {
     setJobs((prev) => prev.map((j) => (j.id === updatedJob.id ? updatedJob : j)));
   }
 
   function handleJobDelete(jobId: string) {
     setJobs((prev) => prev.filter((j) => j.id !== jobId));
+    if (selectedJobId === jobId) {
+      setSelectedJobId(null);
+    }
   }
 
   function handleJobRestore(job: Job) {
     setJobs((prev) => [...prev, job]);
   }
 
-  const jobsByStatus = (s: JobStatus) => jobs.filter((j) => j.status === s);
+  function handleSelectJob(jobId: string) {
+    setSelectedJobId(jobId);
+  }
+
+  function handleBack() {
+    setSelectedJobId(null);
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <header className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-xl font-bold text-gray-900">JobTrack</h1>
@@ -143,15 +95,15 @@ export function Jobs() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-6">
-        <form onSubmit={handleAdd} className="bg-white p-4 rounded-lg shadow-sm mb-6">
+      <main className="flex-1 max-w-7xl mx-auto px-4 py-6 w-full flex flex-col min-h-0">
+        <form onSubmit={handleAdd} className="bg-white p-4 rounded-lg shadow-sm mb-6 shrink-0">
           <h2 className="text-lg font-semibold text-gray-900 mb-3">Add Job Application</h2>
 
           {error && (
             <div className="mb-3 p-3 bg-red-50 text-red-700 text-sm rounded-md">{error}</div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
             <Input
               label="Company"
               id="company"
@@ -165,6 +117,14 @@ export function Jobs() {
               value={position}
               onChange={(e) => setPosition(e.target.value)}
               required
+            />
+            <Input
+              label="Email"
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Optional"
             />
             <div>
               <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
@@ -190,28 +150,61 @@ export function Jobs() {
         </form>
 
         {loading ? (
-          <p className="text-gray-500 text-center">Loading jobs...</p>
+          <p className="text-gray-500 text-center py-12">Loading jobs...</p>
         ) : (
-          <DndContext
-            sensors={sensors}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDragEnd={handleDragEnd}
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {statuses.map((s) => (
-                <KanbanColumn key={s} status={s} jobs={jobsByStatus(s)} onJobUpdate={handleJobUpdate} onJobDelete={handleJobDelete} onJobRestore={handleJobRestore} />
-              ))}
+          <div className="flex-1 flex gap-4 min-h-0">
+            {/* Left pane - Job list */}
+            <div
+              className={`w-full md:w-80 md:shrink-0 bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col overflow-hidden ${
+                selectedJobId ? "hidden md:flex" : "flex"
+              }`}
+            >
+              <div className="px-4 py-3 border-b border-gray-200 shrink-0">
+                <h2 className="text-sm font-semibold text-gray-700">
+                  All Jobs
+                  <span className="ml-2 text-gray-400 font-normal">({jobs.length})</span>
+                </h2>
+              </div>
+              <div className="flex-1 overflow-y-auto p-2">
+                <JobList
+                  jobs={jobs}
+                  selectedJobId={selectedJobId}
+                  onSelectJob={handleSelectJob}
+                />
+              </div>
             </div>
-            <DragOverlay>
-              {activeJob ? (
-                <div className="border border-gray-300 rounded-lg p-3 bg-white shadow-lg rotate-2">
-                  <h3 className="font-semibold text-gray-900 text-sm">{activeJob.company}</h3>
-                  <p className="text-gray-600 text-xs mt-1">{activeJob.position}</p>
+
+            {/* Right pane - Job detail */}
+            <div
+              className={`flex-1 min-w-0 ${
+                selectedJobId ? "flex" : "hidden md:flex"
+              }`}
+            >
+              {selectedJob ? (
+                <JobDetail
+                  key={selectedJob.id}
+                  job={selectedJob}
+                  onJobUpdate={handleJobUpdate}
+                  onJobDelete={handleJobDelete}
+                  onJobRestore={handleJobRestore}
+                  onBack={handleBack}
+                />
+              ) : (
+                <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 flex items-center justify-center">
+                  <div className="text-center text-gray-400">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="mx-auto mb-3 text-gray-300">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+                      <path d="M14 2v6h6" />
+                      <path d="M16 13H8" />
+                      <path d="M16 17H8" />
+                      <path d="M10 9H8" />
+                    </svg>
+                    <p className="text-sm">Select a job to view details</p>
+                  </div>
                 </div>
-              ) : null}
-            </DragOverlay>
-          </DndContext>
+              )}
+            </div>
+          </div>
         )}
       </main>
     </div>

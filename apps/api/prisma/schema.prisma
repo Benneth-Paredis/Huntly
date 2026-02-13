@@ -34,6 +34,7 @@ model JobApplication {
   id        String    @id @default(uuid())
   company   String
   position  String
+  email     String?
   status    JobStatus @default(APPLIED)
   createdAt DateTime  @default(now())
   userId    String

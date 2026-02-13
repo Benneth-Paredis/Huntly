@@ -37,6 +37,7 @@ export async function getJobs(): Promise<Job[]> {
 export async function createJob(data: {
   company: string;
   position: string;
+  email?: string;
   status: JobStatus;
 }): Promise<Job> {
   const res = await authFetch(`${API_URL}/jobs`, {
@@ -53,7 +54,7 @@ export async function createJob(data: {
   return res.json();
 }
 
-export async function updateJob(id: string, data: Partial<Pick<Job, "company" | "position" | "status">>): Promise<Job> {
+export async function updateJob(id: string, data: Partial<Pick<Job, "company" | "position" | "email" | "status">>): Promise<Job> {
   const res = await authFetch(`${API_URL}/jobs/${id}`, {
     method: "PATCH",
     headers: authHeaders(),

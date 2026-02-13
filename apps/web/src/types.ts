@@ -4,6 +4,7 @@ export interface Job {
   id: string;
   company: string;
   position: string;
+  email: string | null;
   status: JobStatus;
   createdAt: string;
   userId: string;
